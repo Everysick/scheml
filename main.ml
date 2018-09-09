@@ -11,7 +11,7 @@ module Sx = struct
     | Lambda of ident * t
     | Define of ident * t
     | Var of ident
-    | Symbol of string
+    | String of string
     | LambdaVal of ident * env * t (* Unavailable in User input *)
     | ContVal of env * (t * env -> t * env) (* Unavailable in User input *)
     | PairVal of t * t (* Unavailable in User input *)
@@ -64,7 +64,7 @@ module Evaluator = struct
               let env' = IdentEnv.add x v' env in
               cont (Sx.Var(x), env'))
     | Sx.Var(x) -> cont (IdentEnv.find x env, env)
-    | Sx.Symbol(str) -> cont (s_x, env)
+    | Sx.String(str) -> cont (s_x, env)
     | _ -> failwith "Unexpected expression by User Program"
 end
 
@@ -82,23 +82,23 @@ end
 
 let program =
   [
-    Sx.Car(Sx.Cons(Sx.Symbol("hello"), Sx.Symbol("world")));
-    Sx.Cdr(Sx.Cons(Sx.Symbol("hello"), Sx.Symbol("world")));
+    Sx.Car(Sx.Cons(Sx.String("hello"), Sx.String("world")));
+    Sx.Cdr(Sx.Cons(Sx.String("hello"), Sx.String("world")));
     Sx.Define("x", Sx.Lambda("y", Sx.Cdr(Sx.Var("y"))));
-    Sx.App(Sx.Var("x"), Sx.Cons(Sx.Symbol("hello"), Sx.Symbol("world")));
+    Sx.App(Sx.Var("x"), Sx.Cons(Sx.String("hello"), Sx.String("world")));
   ]
 
 let callcc_program =
   [
-    Sx.Cons(Sx.Callcc(Sx.Lambda("c", Sx.Symbol("hello"))), Sx.Symbol("world"));
-    Sx.Cons(Sx.Callcc(Sx.Lambda("c", Sx.Cons(Sx.Symbol("hello"), Sx.App(Sx.Var("c"), Sx.Symbol("HELLO"))))), Sx.Symbol("world"));
+    Sx.Cons(Sx.Callcc(Sx.Lambda("c", Sx.String("hello"))), Sx.String("world"));
+    Sx.Cons(Sx.Callcc(Sx.Lambda("c", Sx.Cons(Sx.String("hello"), Sx.App(Sx.Var("c"), Sx.String("HELLO"))))), Sx.String("world"));
   ]
 
 let loop_program =
   [
     Sx.Define("x", Sx.Lambda("g", Sx.App(Sx.Var("y"), Sx.Var("g"))));
     Sx.Define("y", Sx.Lambda("g", Sx.App(Sx.Var("x"), Sx.Var("g"))));
-    Sx.App(Sx.Var("x"), Sx.Symbol("loop"));
+    Sx.App(Sx.Var("x"), Sx.String("loop"));
   ]
 
 let result = Test.test program
