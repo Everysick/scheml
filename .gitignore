@@ -1,0 +1,6 @@
+*.d
+*.o
+*.annot
+*.cmo
+*.cmi
+/scheml
