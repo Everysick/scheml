@@ -21,37 +21,37 @@ module Env = struct
 end
 
 module Evaluator = struct
-  let rec eval (env : Env.t) (s_x : Sx.t) : Sx.t * Env.t =
+  let rec eval (env : Env.t) (s_x : Sx.t) (cont : Sx.t * Env.t -> Sx.t * Env.t) : Sx.t * Env.t =
     match s_x with
     | Sx.Car(cons) ->
-       let (pair, _) = eval env cons in
-       (match pair with
-        | Sx.Pair(e, _) -> (e, env)
-        | _ -> failwith "Unmatch type with Sx.Pair in Car")
+       eval env cons (fun (pair, _) ->
+              match pair with
+              | Sx.Pair(e, _) -> cont (e, env)
+              | _ -> failwith "Unmatch type with Sx.Pair in Car")
     | Sx.Cdr(cons) ->
-       let (pair, _) = eval env cons in
-       (match pair with
-        | Sx.Pair(_, e) -> (e, env)
-        | _ -> failwith "Unmatch type with Sx.Pair in Cdr")
+       eval env cons (fun (pair, _) ->
+              match pair with
+              | Sx.Pair(_, e) -> cont (e, env)
+              | _ -> failwith "Unmatch type with Sx.Pair in Car")
     | Sx.Cons(e1, e2) ->
-       let (e1', _) = eval env e1 in
-       let (e2', _) = eval env e2 in
-       (Sx.Pair(e1', e2'), env)
+       eval env e1 (fun (e1', _) ->
+              eval env e2 (fun (e2', _) ->
+                     cont (Sx.Pair(e1', e2'), env)))
     | Sx.App(e, arg) ->
-       let (e', _) = eval env e in
-       let (arg', _) = eval env arg in
-       (match e' with
-        | Sx.Lambda(x, body) ->
-           let env' = IdentEnv.add x arg' env in
-           eval env' body
-        | _ -> failwith "Unmatch type with Sx.Lambda")
-    | Sx.Lambda(x, body) -> (s_x, env)
+       eval env e (fun (e', _) ->
+              eval env arg (fun (arg', _) ->
+                     (match e' with
+                      | Sx.Lambda(x, body) ->
+                         let env' = IdentEnv.add x arg' env in
+                         eval env' body cont
+                      | _ -> failwith "Unmatch type with Sx.Lambda")))
+    | Sx.Lambda(x, body) -> cont (s_x, env)
     | Sx.Define(x, v) ->
        let env' = IdentEnv.add x v env in
-       (Sx.Var(x), env')
-    | Sx.Var(x) -> (IdentEnv.find x env, env)
-    | Sx.Symbol(str) -> (s_x, env)
-    | Sx.Pair(v1, v2) -> (s_x, env)
+       cont (Sx.Var(x), env')
+    | Sx.Var(x) -> cont (IdentEnv.find x env, env)
+    | Sx.Symbol(str) -> cont (s_x, env)
+    | Sx.Pair(v1, v2) -> cont (s_x, env)
 end
 
 module Test = struct
@@ -59,7 +59,7 @@ module Test = struct
     let rec walk (env: Env.t) (program : Sx.t list) : Sx.t list =
       match program with
       | hd :: tl ->
-         let (s_x, env') = Evaluator.eval env hd in
+         let (s_x, env') = Evaluator.eval env hd (fun x -> x) in
          (s_x) :: (walk env' tl)
       | [] -> []
     in
@@ -75,3 +75,14 @@ let program =
   ]
 
 let result = Test.test program
+
+(*
+let loop_program =
+  [
+    Sx.Define("x", Sx.Lambda("g", Sx.App(Sx.Var("y"), Sx.Var("g"))));
+    Sx.Define("y", Sx.Lambda("g", Sx.App(Sx.Var("x"), Sx.Var("g"))));
+    Sx.App(Sx.Var("x"), Sx.Symbol("loop"));
+  ]
+
+let result = Test.test loop_program
+*)
